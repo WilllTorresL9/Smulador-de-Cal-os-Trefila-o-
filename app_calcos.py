@@ -37,7 +37,7 @@ class PDFRelatorioIndustrial(FPDF):
         self.set_text_color(150, 150, 150)
         self.cell(0, 10, f'Pagina {self.page_no()} | Gerado via Simulador Industrial de Calcos', 0, 0, 'C')
 
-# --- FUNÇÃO DE GERAÇÃO DA IMAGEM TÉCNICA PARA O PDF (COM CORREÇÃO DE TEXTOS) ---
+# --- FUNÇÃO DE GERAÇÃO DA IMAGEM TÉCNICA PARA O PDF (CORRIGIDA) ---
 def gerar_imagem_grafico_pdf(valor_base_inicial, bases_fixas, calcos, alocacao, novas_distancias):
     fig_pdf, ax = plt.subplots(figsize=(10, 2.3), dpi=250)
     
@@ -45,21 +45,24 @@ def gerar_imagem_grafico_pdf(valor_base_inicial, bases_fixas, calcos, alocacao, 
     cores_calcos_hex = ["#2CA02C", "#17BECF", "#1F77B4", "#9467BD"]
     
     pos_x = 0
-    # Base Inicial
+    # Desenha Base Inicial (1º Postiço)
     ax.add_patch(patches.Rectangle((pos_x, 0), valor_base_inicial, 1, facecolor=cor_base_hex, edgecolor="black", linewidth=1))
     ax.text(pos_x + valor_base_inicial/2, 0.5, f"1º Postiço\n{valor_base_inicial:.1f}mm", color="black", fontsize=7, ha='center', va='center', weight='bold')
     pos_x += valor_base_inicial
     
     opcoes_posicao = list(bases_fixas.keys())
-    titulos_curtos = ["1º/2º Est.", "2º/3º Est.", "3º/4º Est.", "4º/5º Est."]
+    titulos_curtos = ["1º para 2º estágio", "2º para 3º estágio", "3º para 4º estágio", "4º para 5º estágio"]
     
     for i, estagio in enumerate(opcoes_posicao):
+        # A linha tracejada vermelha deve iniciar exatamente onde começa o estágio (após a base inicial ou após o estágio anterior)
+        x_inicio_estagio = pos_x
+        
+        # Desenha calços alocados neste estágio
         for idx_c, (nome_calco, posicao) in enumerate(alocacao.items()):
             if posicao == estagio:
                 esp = calcos[nome_calco]
                 ax.add_patch(patches.Rectangle((pos_x, 0), esp, 1, facecolor=cores_calcos_hex[idx_c], edgecolor="black", linewidth=1))
                 
-                # CORREÇÃO ANTISOBREPOSIÇÃO: Se o calço for estreito, ajusta a orientação ou formatação do texto
                 if esp <= 75:
                     ax.text(pos_x + esp/2, 0.5, f"{idx_c+1}º\n{esp:.1f}", color="white", fontsize=6, ha='center', va='center', weight='bold', rotation=90)
                 else:
@@ -67,14 +70,18 @@ def gerar_imagem_grafico_pdf(valor_base_inicial, bases_fixas, calcos, alocacao, 
                 
                 pos_x += esp
                 
+        # Desenha o Postiço/Base do estágio
         tam_base = bases_fixas[estagio]
         ax.add_patch(patches.Rectangle((pos_x, 0), tam_base, 1, facecolor=cor_base_hex, edgecolor="black", linewidth=1))
         ax.text(pos_x + tam_base/2, 0.5, f"{estagio}\n{tam_base:.1f}mm", color="black", fontsize=7, ha='center', va='center', weight='bold')
-        
-        ax.axvline(x=pos_x, color="red", linestyle="--", linewidth=1.2)
-        ax.text(pos_x + (novas_distancias[estagio]/2), 1.12, titulos_curtos[i], color="red", fontsize=8, ha='center', va='bottom', weight='bold')
-        
         pos_x += tam_base
+        
+        # Posiciona a linha tracejada vermelha exatamente no início da zona do estágio (mesmo comportamento do site)
+        ax.axvline(x=x_inicio_estagio, color="red", linestyle="--", linewidth=1.2)
+        
+        # Centraliza o título do estágio na distância exata calculada
+        largura_total_estagio = novas_distancias[estagio]
+        ax.text(x_inicio_estagio + (largura_total_estagio / 2), 1.12, titulos_curtos[i], color="red", fontsize=8, ha='center', va='bottom', weight='bold')
         
     ax.set_xlim(0, pos_x)
     ax.set_ylim(-0.1, 1.4)
@@ -93,7 +100,7 @@ def gerar_pdf(calcos, alocacao, novas_distancias, comprimento_alvo, soma_total_n
     # 1. Representação Gráfica
     pdf.set_font("Arial", 'B', 10)
     pdf.set_text_color(50, 50, 50)
-    pdf.cell(0, 6, "1. REPRESENTACAO ESQUEMATICA DO MONTAGEM", 0, 1, 'L')
+    pdf.cell(0, 6, "1. REPRESENTACAO ESQUEMATICA DA MONTAGEM", 0, 1, 'L')
     pdf.ln(1)
     
     img_path = gerar_imagem_grafico_pdf(valor_base_inicial, bases_fixas, calcos, alocacao, novas_distancias)
@@ -269,7 +276,6 @@ for estagio in opcoes_posicao:
             espessura_atual = calcos[nome_calco]
             novas_distancias[estagio] += espessura_atual
             
-            # Ajuste dinâmico de exibição no Plotly web também
             texto_barra = f"{nome_calco[:2]}<br>{espessura_atual:.1f}mm"
             
             fig.add_trace(go.Bar(
