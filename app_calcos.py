@@ -16,45 +16,59 @@ def calcular_expressao(valor_str):
     except:
         return 0.0
 
+# --- CLASSE DE PDF PERSONALIZADA PARA PADRÃO INDUSTRIAL ---
+class PDFRelatorioIndustrial(FPDF):
+    def header(self):
+        # Logotipo / Nome da Empresa / Título
+        self.set_font('Arial', 'B', 12)
+        self.set_text_color(40, 40, 40)
+        self.cell(0, 6, 'RELATORIO TECNICO DE SETUP - PACOTE INTERNO DE TREFILA', 0, 1, 'L')
+        self.set_font('Arial', '', 9)
+        self.set_text_color(100, 100, 100)
+        self.cell(0, 5, 'Modulo de Analise Dimensional e Alocacao de Calcos', 0, 1, 'L')
+        
+        # Linha divisoria superior
+        self.set_draw_color(180, 180, 180)
+        self.set_line_width(0.5)
+        self.line(10, 20, 200, 20)
+        self.ln(6)
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font('Arial', 'I', 8)
+        self.set_text_color(150, 150, 150)
+        self.cell(0, 10, f'Pagina {self.page_no()} | Gerado via Simulador Industrial de Calcos', 0, 0, 'C')
+
 # --- FUNÇÃO DE GERAÇÃO DA IMAGEM TÉCNICA PARA O PDF (MATPLOTLIB) ---
 def gerar_imagem_grafico_pdf(valor_base_inicial, bases_fixas, calcos, alocacao, novas_distancias):
-    fig_pdf, ax = plt.subplots(figsize=(10, 2.5))
+    fig_pdf, ax = plt.subplots(figsize=(10, 2.3), dpi=250)
     
-    # Cores equivalentes às do dashboard
-    cor_base_hex = "#A9A9A9"
-    cores_calcos_hex = [
-        "#228B22",  # Verde
-        "#008080",  # Teal
-        "#000080",  # Azul Escuro
-        "#800080"   # Roxo
-    ]
+    cor_base_hex = "#D3D3D3" # Cinza claro industrial
+    cores_calcos_hex = ["#2CA02C", "#17BECF", "#1F77B4", "#9467BD"]
     
-    # Desenha Base Inicial (Aba)
     pos_x = 0
-    ax.add_patch(patches.Rectangle((pos_x, 0), valor_base_inicial, 1, facecolor=cor_base_hex, edgecolor="black", linewidth=1.5))
-    ax.text(pos_x + valor_base_inicial/2, 0.5, f"1º Postiço\n{valor_base_inicial:.1f}mm", color="black", fontsize=8, ha='center', va='center', weight='bold')
+    # Base Inicial
+    ax.add_patch(patches.Rectangle((pos_x, 0), valor_base_inicial, 1, facecolor=cor_base_hex, edgecolor="black", linewidth=1))
+    ax.text(pos_x + valor_base_inicial/2, 0.5, f"1º Postiço\n{valor_base_inicial:.1f}mm", color="black", fontsize=7, ha='center', va='center', weight='bold')
     pos_x += valor_base_inicial
     
     opcoes_posicao = list(bases_fixas.keys())
     titulos_curtos = ["1º/2º Est.", "2º/3º Est.", "3º/4º Est.", "4º/5º Est."]
     
     for i, estagio in enumerate(opcoes_posicao):
-        # Desenha calços alocados neste estágio
         for idx_c, (nome_calco, posicao) in enumerate(alocacao.items()):
             if posicao == estagio:
                 esp = calcos[nome_calco]
-                ax.add_patch(patches.Rectangle((pos_x, 0), esp, 1, facecolor=cores_calcos_hex[idx_c], edgecolor="black", linewidth=1.5))
-                ax.text(pos_x + esp/2, 0.5, f"{idx_c+1}º\n{esp:.1f}mm", color="white", fontsize=8, ha='center', va='center', weight='bold')
+                ax.add_patch(patches.Rectangle((pos_x, 0), esp, 1, facecolor=cores_calcos_hex[idx_c], edgecolor="black", linewidth=1))
+                ax.text(pos_x + esp/2, 0.5, f"{idx_c+1}º\n{esp:.1f}mm", color="white", fontsize=7, ha='center', va='center', weight='bold')
                 pos_x += esp
                 
-        # Desenha o Postiço/Base do estágio
         tam_base = bases_fixas[estagio]
-        ax.add_patch(patches.Rectangle((pos_x, 0), tam_base, 1, facecolor=cor_base_hex, edgecolor="black", linewidth=1.5))
-        ax.text(pos_x + tam_base/2, 0.5, f"{estagio}\n{tam_base:.1f}mm", color="black", fontsize=8, ha='center', va='center', weight='bold')
+        ax.add_patch(patches.Rectangle((pos_x, 0), tam_base, 1, facecolor=cor_base_hex, edgecolor="black", linewidth=1))
+        ax.text(pos_x + tam_base/2, 0.5, f"{estagio}\n{tam_base:.1f}mm", color="black", fontsize=7, ha='center', va='center', weight='bold')
         
-        # Linha tracejada divisoria de estágio
-        ax.axvline(x=pos_x, color="red", linestyle="--", linewidth=1.5)
-        ax.text(pos_x + (novas_distancias[estagio]/2), 1.15, titulos_curtos[i], color="red", fontsize=9, ha='center', va='bottom', weight='bold')
+        ax.axvline(x=pos_x, color="red", linestyle="--", linewidth=1.2)
+        ax.text(pos_x + (novas_distancias[estagio]/2), 1.12, titulos_curtos[i], color="red", fontsize=8, ha='center', va='bottom', weight='bold')
         
         pos_x += tam_base
         
@@ -62,67 +76,97 @@ def gerar_imagem_grafico_pdf(valor_base_inicial, bases_fixas, calcos, alocacao, 
     ax.set_ylim(-0.1, 1.4)
     ax.axis('off')
     
-    # Salva em arquivo temporário
     tmp_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
-    plt.savefig(tmp_path, bbox_inches='tight', dpi=200)
+    plt.savefig(tmp_path, bbox_inches='tight', dpi=300)
     plt.close(fig_pdf)
     return tmp_path
 
-# --- FUNÇÃO DE GERAÇÃO DE PDF COMPLETA ---
+# --- FUNÇÃO DE GERAÇÃO DE PDF EXECUTIVO ---
 def gerar_pdf(calcos, alocacao, novas_distancias, comprimento_alvo, soma_total_nova, diferenca, nome_dropdown, nome_tabela, valor_base_inicial, bases_fixas):
-    pdf = FPDF()
+    pdf = PDFRelatorioIndustrial(orientation='P', unit='mm', format='A4')
     pdf.add_page()
     
-    # Cabeçalho
-    pdf.set_font("Arial", style="B", size=14)
-    pdf.cell(200, 8, txt="RELATORIO DE SETUP - SIMULADOR DE CALCOS", ln=True, align='C')
-    pdf.ln(2)
+    # 1. Representação Gráfica
+    pdf.set_font("Arial", 'B', 10)
+    pdf.set_text_color(50, 50, 50)
+    pdf.cell(0, 6, "1. REPRESENTACAO ESQUEMATICA DO MONTAGEM", 0, 1, 'L')
+    pdf.ln(1)
     
-    # Insere o Gráfico Técnico Gerado
     img_path = gerar_imagem_grafico_pdf(valor_base_inicial, bases_fixas, calcos, alocacao, novas_distancias)
     pdf.image(img_path, x=10, w=190)
     pdf.ln(4)
     os.remove(img_path)
     
-    # Seção: Configuração dos Espaçadores
-    pdf.set_font("Arial", style="B", size=11)
-    pdf.cell(200, 7, txt="1. Configuracao dos Espacadores:", ln=True)
-    pdf.set_font("Arial", size=10)
+    # 2. Tabela de Configuração dos Espaçadores
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(0, 6, "2. CONFIGURACAO DOS ESPACADORES (CALCOS)", 0, 1, 'L')
+    pdf.ln(1)
+    
+    # Cabeçalho da Tabela
+    pdf.set_fill_color(230, 230, 230)
+    pdf.set_font("Arial", 'B', 9)
+    pdf.cell(45, 6, "Espacador", 1, 0, 'C', True)
+    pdf.cell(35, 6, "Espessura (mm)", 1, 0, 'C', True)
+    pdf.cell(110, 6, "Posicao de Alocacao no Eixo", 1, 1, 'C', True)
+    
+    pdf.set_font("Arial", '', 9)
     for calco, espessura in calcos.items():
         local = nome_dropdown[alocacao[calco]]
         local_limpo = local.replace('º', 'o').replace('ç', 'c').replace('á', 'a')
         calco_limpo = calco.replace('º', 'o').replace('ç', 'c')
-        pdf.cell(200, 5, txt=f"   - {calco_limpo}: {espessura:.1f} mm  ->  Alocado {local_limpo}", ln=True)
         
-    pdf.ln(2)
+        pdf.cell(45, 6, f"   {calco_limpo}", 1, 0, 'L')
+        pdf.cell(35, 6, f"{espessura:.1f} mm", 1, 0, 'C')
+        pdf.cell(110, 6, f"   {local_limpo}", 1, 1, 'L')
+        
+    pdf.ln(4)
     
-    # Seção: Distâncias entre Anéis
-    pdf.set_font("Arial", style="B", size=11)
-    pdf.cell(200, 7, txt="2. Distancia entre Aneis de Reducao:", ln=True)
-    pdf.set_font("Arial", size=10)
+    # 3. Tabela de Distâncias entre Estágios
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(0, 6, "3. DISTANCIA ENTRE ANEIS DE REDUCAO", 0, 1, 'L')
+    pdf.ln(1)
+    
+    pdf.set_fill_color(230, 230, 230)
+    pdf.set_font("Arial", 'B', 9)
+    pdf.cell(130, 6, "Estagio / Intervalo", 1, 0, 'C', True)
+    pdf.cell(60, 6, "Distancia Final (mm)", 1, 1, 'C', True)
+    
+    pdf.set_font("Arial", '', 9)
     for estagio, dist in novas_distancias.items():
         estagio_limpo = nome_tabela[estagio].replace('º', 'o').replace('á', 'a').replace('ç', 'c')
-        pdf.cell(200, 5, txt=f"   - {estagio_limpo}: {dist:.1f} mm", ln=True)
+        pdf.cell(130, 6, f"   {estagio_limpo}", 1, 0, 'L')
+        pdf.cell(60, 6, f"{dist:.1f} mm", 1, 1, 'C')
         
-    pdf.ln(2)
+    pdf.ln(4)
     
-    # Seção: Validação Dimensional
-    pdf.set_font("Arial", style="B", size=11)
-    pdf.cell(200, 7, txt="3. Analise do Comprimento Total:", ln=True)
-    pdf.set_font("Arial", size=10)
-    pdf.cell(200, 5, txt=f"   - Comprimento Alvo (Original + Folga): {comprimento_alvo:.1f} mm", ln=True)
-    pdf.cell(200, 5, txt=f"   - Comprimento Total da Montagem: {soma_total_nova:.1f} mm", ln=True)
+    # 4. Análise de Conformidade Dimensional
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(0, 6, "4. ANALISE DE CONFORMIDADE DIMENSIONAL", 0, 1, 'L')
+    pdf.ln(1)
     
+    pdf.set_font("Arial", '', 9)
+    pdf.cell(130, 6, "   Comprimento Alvo (Projeto Original + Folga de Flange):", 1, 0, 'L')
+    pdf.set_font("Arial", 'B', 9)
+    pdf.cell(60, 6, f"{comprimento_alvo:.1f} mm", 1, 1, 'C')
+    
+    pdf.set_font("Arial", '', 9)
+    pdf.cell(130, 6, "   Comprimento Total Consolidado da Montagem:", 1, 0, 'L')
+    pdf.set_font("Arial", 'B', 9)
+    pdf.cell(60, 6, f"{soma_total_nova:.1f} mm", 1, 1, 'C')
+    
+    # Status com destaque de cor simulada em texto
     if round(diferenca, 1) > 0:
-        status_txt = f"ATENCAO: Passando {abs(diferenca):.1f} mm do comprimento alvo."
+        status_txt = f"ATENCAO: PASSANDO {abs(diferenca):.1f} mm DO ALVO"
+        pdf.set_fill_color(255, 230, 230) # Fundo avermelhado leve
     elif round(diferenca, 1) < 0:
-        status_txt = f"ATENCAO: Faltando {abs(diferenca):.1f} mm para atingir o alvo."
+        status_txt = f"ATENCAO: FALTANDO {abs(diferenca):.1f} mm PARA O ALVO"
+        pdf.set_fill_color(255, 245, 230) # Fundo amarelado leve
     else:
-        status_txt = "PERFEITO: O comprimento total bate exatamente com o alvo."
+        status_txt = "CONFORME: O COMPRIMENTO TOTAL BATE EXATAMENTE COM O ALVO"
+        pdf.set_fill_color(230, 255, 230) # Fundo esverdeado leve
         
-    pdf.ln(2)
-    pdf.set_font("Arial", style="B", size=10)
-    pdf.cell(200, 6, txt=f"   Status: {status_txt}", ln=True)
+    pdf.set_font("Arial", 'B', 9)
+    pdf.cell(190, 7, f"   STATUS DE VALIDACAO: {status_txt}", 1, 1, 'C', True)
     
     # Retorna os bytes do PDF
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
@@ -294,13 +338,13 @@ elif round(diferenca, 1) < 0:
 else:
     st.success(f"✅ **Perfeito!** O comprimento total bate exatamente com o alvo de {comprimento_alvo:.1f} mm.")
 
-# 6. Botão de Exportação para PDF com Gráfico
+# 6. Botão de Exportação para PDF Executivo
 st.divider()
 st.subheader("Exportar Relatório")
-st.write("Gere um documento PDF contendo a representação gráfica do eixo, parâmetros, distâncias calculadas e a análise de conformidade.")
+st.write("Gere um documento PDF em formato executivo/industrial contendo o desenho esquemático, tabelas estruturadas e análise de conformidade para aprovação da engenharia e produção.")
 
-if st.button("📄 Gerar Relatório em PDF com Gráfico"):
-    with st.spinner("Construindo documento PDF com representação gráfica..."):
+if st.button("📄 Gerar Relatório Executivo em PDF"):
+    with st.spinner("Compilando relatório técnico de engenharia..."):
         pdf_bytes = gerar_pdf(
             calcos, alocacao, novas_distancias, 
             comprimento_alvo, soma_total_nova, diferenca, 
@@ -309,8 +353,8 @@ if st.button("📄 Gerar Relatório em PDF com Gráfico"):
         
     st.success("Relatório gerado com sucesso!")
     st.download_button(
-        label="📥 Baixar Arquivo PDF",
+        label="📥 Baixar Relatório Técnico PDF",
         data=pdf_bytes,
-        file_name="relatorio_setup_calcos.pdf",
+        file_name="relatorio_tecnico_setup_calcos.pdf",
         mime="application/pdf"
     )
