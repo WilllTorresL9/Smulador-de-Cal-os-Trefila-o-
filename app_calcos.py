@@ -37,7 +37,7 @@ class PDFRelatorioIndustrial(FPDF):
         self.set_text_color(150, 150, 150)
         self.cell(0, 10, f'Pagina {self.page_no()} | Gerado via Simulador Industrial de Calcos', 0, 0, 'C')
 
-# --- FUNÇÃO DE GERAÇÃO DA IMAGEM TÉCNICA PARA O PDF (COM FILTRO DE CALÇOS ZERADOS) ---
+# --- FUNÇÃO DE GERAÇÃO DA IMAGEM TÉCNICA PARA O PDF (TEXTOS VERTICAIS PADRONIZADOS) ---
 def gerar_imagem_grafico_pdf(valor_base_inicial, bases_fixas, calcos, alocacao, novas_distancias):
     fig_pdf, ax = plt.subplots(figsize=(10, 2.3), dpi=250)
     
@@ -45,9 +45,9 @@ def gerar_imagem_grafico_pdf(valor_base_inicial, bases_fixas, calcos, alocacao, 
     cores_calcos_hex = ["#2CA02C", "#17BECF", "#1F77B4", "#9467BD"]
     
     pos_x = 0
-    # Desenha Base Inicial (1º Postiço)
+    # Desenha Base Inicial (1º Postiço) com texto vertical
     ax.add_patch(patches.Rectangle((pos_x, 0), valor_base_inicial, 1, facecolor=cor_base_hex, edgecolor="black", linewidth=1))
-    ax.text(pos_x + valor_base_inicial/2, 0.5, f"1º Postiço\n{valor_base_inicial:.1f}mm", color="black", fontsize=7, ha='center', va='center', weight='bold')
+    ax.text(pos_x + valor_base_inicial/2, 0.5, f"1º Postiço\n{valor_base_inicial:.1f}mm", color="black", fontsize=7, ha='center', va='center', weight='bold', rotation=90)
     pos_x += valor_base_inicial
     
     opcoes_posicao = list(bases_fixas.keys())
@@ -56,30 +56,23 @@ def gerar_imagem_grafico_pdf(valor_base_inicial, bases_fixas, calcos, alocacao, 
     for i, estagio in enumerate(opcoes_posicao):
         x_inicio_estagio = pos_x
         
-        # Desenha apenas calços com espessura maior que zero
+        # Desenha calços ativos (> 0.5mm) com texto vertical padronizado
         for idx_c, (nome_calco, posicao) in enumerate(alocacao.items()):
             if posicao == estagio:
                 esp = calcos[nome_calco]
-                if esp > 0.5:  # <-- FILTRA CALÇOS ZERADOS OU NULOS
+                if esp > 0.5:
                     ax.add_patch(patches.Rectangle((pos_x, 0), esp, 1, facecolor=cores_calcos_hex[idx_c], edgecolor="black", linewidth=1))
-                    
-                    if esp <= 75:
-                        ax.text(pos_x + esp/2, 0.5, f"{idx_c+1}º\n{esp:.1f}", color="white", fontsize=6, ha='center', va='center', weight='bold', rotation=90)
-                    else:
-                        ax.text(pos_x + esp/2, 0.5, f"{idx_c+1}º Esp.\n{esp:.1f}mm", color="white", fontsize=7, ha='center', va='center', weight='bold')
-                    
+                    ax.text(pos_x + esp/2, 0.5, f"{idx_c+1}º Esp.\n{esp:.1f}mm", color="white", fontsize=7, ha='center', va='center', weight='bold', rotation=90)
                     pos_x += esp
                 
-        # Desenha o Postiço/Base do estágio
+        # Desenha o Postiço/Base do estágio com texto vertical padronizado
         tam_base = bases_fixas[estagio]
         ax.add_patch(patches.Rectangle((pos_x, 0), tam_base, 1, facecolor=cor_base_hex, edgecolor="black", linewidth=1))
-        ax.text(pos_x + tam_base/2, 0.5, f"{estagio}\n{tam_base:.1f}mm", color="black", fontsize=7, ha='center', va='center', weight='bold')
+        ax.text(pos_x + tam_base/2, 0.5, f"{i+2}º Postiço\n{tam_base:.1f}mm", color="black", fontsize=7, ha='center', va='center', weight='bold', rotation=90)
         pos_x += tam_base
         
-        # Posiciona a linha tracejada vermelha exatamente no início da zona do estágio
+        # Linha tracejada vermelha e título do estágio
         ax.axvline(x=x_inicio_estagio, color="red", linestyle="--", linewidth=1.2)
-        
-        # Centraliza o título do estágio
         largura_total_estagio = novas_distancias[estagio]
         ax.text(x_inicio_estagio + (largura_total_estagio / 2), 1.12, titulos_curtos[i], color="red", fontsize=8, ha='center', va='bottom', weight='bold')
         
@@ -264,20 +257,23 @@ st.divider()
 novas_distancias = bases_fixas.copy()
 fig = go.Figure()
 
+# Desenho no Plotly web com texto vertical também
 fig.add_trace(go.Bar(
     y=['Montagem do Eixo'], x=[valor_base_inicial], name=nome_base_inicial,
     orientation='h', marker=dict(color=cor_base, line=dict(color='black', width=1)),
-    text=f"{nome_base_inicial}<br>{valor_base_inicial:.1f}mm", textposition='inside', insidetextanchor='middle'
+    text=f"1º Postiço<br>{valor_base_inicial:.1f}mm", textposition='inside', insidetextanchor='middle'
 ))
 
-for estagio in opcoes_posicao:
+for i, estagio in enumerate(opcoes_posicao):
     for nome_calco, posicao in alocacao.items():
         if posicao == estagio:
             espessura_atual = calcos[nome_calco]
-            if espessura_atual > 0.5:  # <-- FILTRA TAMBÉM NO PLOTLY DO SITE
+            if espessura_atual > 0.5:
                 novas_distancias[estagio] += espessura_atual
                 
-                texto_barra = f"{nome_calco[:2]}<br>{espessura_atual:.1f}mm"
+                # Exibe o número do calço e a espessura de forma limpa
+                id_calco_num = nome_calco.split("º")[0]
+                texto_barra = f"{id_calco_num}º Esp.<br>{espessura_atual:.1f}mm"
                 
                 fig.add_trace(go.Bar(
                     y=['Montagem do Eixo'], x=[espessura_atual], name=nome_calco,
@@ -288,7 +284,7 @@ for estagio in opcoes_posicao:
     fig.add_trace(go.Bar(
         y=['Montagem do Eixo'], x=[bases_fixas[estagio]], name=estagio,
         orientation='h', marker=dict(color=cor_base, line=dict(color='black', width=1)),
-        text=f"{estagio}<br>{bases_fixas[estagio]:.1f}mm", textposition='inside', insidetextanchor='middle'
+        text=f"{i+2}º Postiço<br>{bases_fixas[estagio]:.1f}mm", textposition='inside', insidetextanchor='middle'
     ))
 
 titulos_distancias = ["1º para 2º estágio", "2º para 3º estágio", "3º para 4º estágio", "4º para 5º estágio"]
