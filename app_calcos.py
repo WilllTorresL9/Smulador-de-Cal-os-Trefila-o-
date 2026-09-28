@@ -37,7 +37,7 @@ class PDFRelatorioIndustrial(FPDF):
         self.set_text_color(150, 150, 150)
         self.cell(0, 10, f'Pagina {self.page_no()} | Gerado via Simulador Industrial de Calcos', 0, 0, 'C')
 
-# --- FUNÇÃO DE GERAÇÃO DA IMAGEM TÉCNICA PARA O PDF (TEXTOS VERTICAIS PADRONIZADOS) ---
+# --- FUNÇÃO DE GERAÇÃO DA IMAGEM TÉCNICA PARA O PDF ---
 def gerar_imagem_grafico_pdf(valor_base_inicial, bases_fixas, calcos, alocacao, novas_distancias):
     fig_pdf, ax = plt.subplots(figsize=(10, 2.3), dpi=250)
     
@@ -45,7 +45,7 @@ def gerar_imagem_grafico_pdf(valor_base_inicial, bases_fixas, calcos, alocacao, 
     cores_calcos_hex = ["#2CA02C", "#17BECF", "#1F77B4", "#9467BD"]
     
     pos_x = 0
-    # Desenha Base Inicial (1º Postiço) com texto vertical
+    # Desenha Base Inicial (1º Postiço)
     ax.add_patch(patches.Rectangle((pos_x, 0), valor_base_inicial, 1, facecolor=cor_base_hex, edgecolor="black", linewidth=1))
     ax.text(pos_x + valor_base_inicial/2, 0.5, f"1º Postiço\n{valor_base_inicial:.1f}mm", color="black", fontsize=7, ha='center', va='center', weight='bold', rotation=90)
     pos_x += valor_base_inicial
@@ -56,7 +56,7 @@ def gerar_imagem_grafico_pdf(valor_base_inicial, bases_fixas, calcos, alocacao, 
     for i, estagio in enumerate(opcoes_posicao):
         x_inicio_estagio = pos_x
         
-        # Desenha calços ativos (> 0.5mm) com texto vertical padronizado
+        # Desenha calços ativos (> 0.5mm)
         for idx_c, (nome_calco, posicao) in enumerate(alocacao.items()):
             if posicao == estagio:
                 esp = calcos[nome_calco]
@@ -65,7 +65,7 @@ def gerar_imagem_grafico_pdf(valor_base_inicial, bases_fixas, calcos, alocacao, 
                     ax.text(pos_x + esp/2, 0.5, f"{idx_c+1}º Esp.\n{esp:.1f}mm", color="white", fontsize=7, ha='center', va='center', weight='bold', rotation=90)
                     pos_x += esp
                 
-        # Desenha o Postiço/Base do estágio com texto vertical padronizado
+        # Desenha o Postiço/Base do estágio
         tam_base = bases_fixas[estagio]
         ax.add_patch(patches.Rectangle((pos_x, 0), tam_base, 1, facecolor=cor_base_hex, edgecolor="black", linewidth=1))
         ax.text(pos_x + tam_base/2, 0.5, f"{i+2}º Postiço\n{tam_base:.1f}mm", color="black", fontsize=7, ha='center', va='center', weight='bold', rotation=90)
@@ -86,7 +86,7 @@ def gerar_imagem_grafico_pdf(valor_base_inicial, bases_fixas, calcos, alocacao, 
     return tmp_path
 
 # --- FUNÇÃO DE GERAÇÃO DE PDF EXECUTIVO ---
-def gerar_pdf(calcos, alocacao, novas_distancias, comprimento_alvo, soma_total_nova, diferenca, nome_dropdown, nome_tabela, valor_base_inicial, bases_fixas):
+def gerar_pdf(calcos, alocacao, novas_distancias, folga_flange, comprimento_alvo, soma_total_nova, diferenca, nome_dropdown, nome_tabela, valor_base_inicial, bases_fixas):
     pdf = PDFRelatorioIndustrial(orientation='P', unit='mm', format='A4')
     pdf.add_page()
     
@@ -101,9 +101,19 @@ def gerar_pdf(calcos, alocacao, novas_distancias, comprimento_alvo, soma_total_n
     pdf.ln(4)
     os.remove(img_path)
     
-    # 2. Tabela de Configuração dos Espaçadores
+    # 2. Folga para aperto do Flange
     pdf.set_font("Arial", 'B', 10)
-    pdf.cell(0, 6, "2. CONFIGURACAO DOS ESPACADORES (CALCOS)", 0, 1, 'L')
+    pdf.cell(0, 6, "2. FOLGA PARA APERTO DO FLANGE (MM)", 0, 1, 'L')
+    pdf.ln(1)
+    pdf.set_font("Arial", '', 9)
+    pdf.cell(130, 6, "   Valor inserido para folga do flange:", 1, 0, 'L')
+    pdf.set_font("Arial", 'B', 9)
+    pdf.cell(60, 6, f"{folga_flange:.1f} mm", 1, 1, 'C')
+    pdf.ln(4)
+    
+    # 3. Tabela de Configuração dos Espaçadores
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(0, 6, "3. CONFIGURACAO DOS ESPACADORES (CALCOS)", 0, 1, 'L')
     pdf.ln(1)
     
     pdf.set_fill_color(230, 230, 230)
@@ -124,9 +134,9 @@ def gerar_pdf(calcos, alocacao, novas_distancias, comprimento_alvo, soma_total_n
         
     pdf.ln(4)
     
-    # 3. Tabela de Distâncias entre Estágios
+    # 4. Tabela de Distâncias entre Estágios
     pdf.set_font("Arial", 'B', 10)
-    pdf.cell(0, 6, "3. DISTANCIA ENTRE ANEIS DE REDUCAO", 0, 1, 'L')
+    pdf.cell(0, 6, "4. DISTANCIA ENTRE ANEIS DE REDUCAO", 0, 1, 'L')
     pdf.ln(1)
     
     pdf.set_fill_color(230, 230, 230)
@@ -142,9 +152,9 @@ def gerar_pdf(calcos, alocacao, novas_distancias, comprimento_alvo, soma_total_n
         
     pdf.ln(4)
     
-    # 4. Análise de Conformidade Dimensional
+    # 5. Análise de Conformidade Dimensional
     pdf.set_font("Arial", 'B', 10)
-    pdf.cell(0, 6, "4. ANALISE DE CONFORMIDADE DIMENSIONAL", 0, 1, 'L')
+    pdf.cell(0, 6, "5. ANALISE DE CONFORMIDADE DIMENSIONAL", 0, 1, 'L')
     pdf.ln(1)
     
     pdf.set_font("Arial", '', 9)
@@ -257,7 +267,6 @@ st.divider()
 novas_distancias = bases_fixas.copy()
 fig = go.Figure()
 
-# Desenho no Plotly web com texto vertical também
 fig.add_trace(go.Bar(
     y=['Montagem do Eixo'], x=[valor_base_inicial], name=nome_base_inicial,
     orientation='h', marker=dict(color=cor_base, line=dict(color='black', width=1)),
@@ -271,7 +280,6 @@ for i, estagio in enumerate(opcoes_posicao):
             if espessura_atual > 0.5:
                 novas_distancias[estagio] += espessura_atual
                 
-                # Exibe o número do calço e a espessura de forma limpa
                 id_calco_num = nome_calco.split("º")[0]
                 texto_barra = f"{id_calco_num}º Esp.<br>{espessura_atual:.1f}mm"
                 
@@ -348,7 +356,7 @@ if st.button("📄 Gerar Relatório Executivo em PDF"):
     with st.spinner("Compilando relatório técnico de engenharia..."):
         pdf_bytes = gerar_pdf(
             calcos, alocacao, novas_distancias, 
-            comprimento_alvo, soma_total_nova, diferenca, 
+            folga_flange, comprimento_alvo, soma_total_nova, diferenca, 
             nome_dropdown, nome_tabela, valor_base_inicial, bases_fixas
         )
         
