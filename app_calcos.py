@@ -19,7 +19,6 @@ def calcular_expressao(valor_str):
 # --- CLASSE DE PDF PERSONALIZADA PARA PADRÃO INDUSTRIAL ---
 class PDFRelatorioIndustrial(FPDF):
     def header(self):
-        # Logotipo / Nome da Empresa / Título
         self.set_font('Arial', 'B', 12)
         self.set_text_color(40, 40, 40)
         self.cell(0, 6, 'RELATORIO TECNICO DE SETUP - PACOTE INTERNO DE TREFILA', 0, 1, 'L')
@@ -27,7 +26,6 @@ class PDFRelatorioIndustrial(FPDF):
         self.set_text_color(100, 100, 100)
         self.cell(0, 5, 'Modulo de Analise Dimensional e Alocacao de Calcos', 0, 1, 'L')
         
-        # Linha divisoria superior
         self.set_draw_color(180, 180, 180)
         self.set_line_width(0.5)
         self.line(10, 20, 200, 20)
@@ -39,7 +37,7 @@ class PDFRelatorioIndustrial(FPDF):
         self.set_text_color(150, 150, 150)
         self.cell(0, 10, f'Pagina {self.page_no()} | Gerado via Simulador Industrial de Calcos', 0, 0, 'C')
 
-# --- FUNÇÃO DE GERAÇÃO DA IMAGEM TÉCNICA PARA O PDF (MATPLOTLIB) ---
+# --- FUNÇÃO DE GERAÇÃO DA IMAGEM TÉCNICA PARA O PDF (COM CORREÇÃO DE TEXTOS) ---
 def gerar_imagem_grafico_pdf(valor_base_inicial, bases_fixas, calcos, alocacao, novas_distancias):
     fig_pdf, ax = plt.subplots(figsize=(10, 2.3), dpi=250)
     
@@ -60,7 +58,13 @@ def gerar_imagem_grafico_pdf(valor_base_inicial, bases_fixas, calcos, alocacao, 
             if posicao == estagio:
                 esp = calcos[nome_calco]
                 ax.add_patch(patches.Rectangle((pos_x, 0), esp, 1, facecolor=cores_calcos_hex[idx_c], edgecolor="black", linewidth=1))
-                ax.text(pos_x + esp/2, 0.5, f"{idx_c+1}º\n{esp:.1f}mm", color="white", fontsize=7, ha='center', va='center', weight='bold')
+                
+                # CORREÇÃO ANTISOBREPOSIÇÃO: Se o calço for estreito, ajusta a orientação ou formatação do texto
+                if esp <= 75:
+                    ax.text(pos_x + esp/2, 0.5, f"{idx_c+1}º\n{esp:.1f}", color="white", fontsize=6, ha='center', va='center', weight='bold', rotation=90)
+                else:
+                    ax.text(pos_x + esp/2, 0.5, f"{idx_c+1}º Esp.\n{esp:.1f}mm", color="white", fontsize=7, ha='center', va='center', weight='bold')
+                
                 pos_x += esp
                 
         tam_base = bases_fixas[estagio]
@@ -102,7 +106,6 @@ def gerar_pdf(calcos, alocacao, novas_distancias, comprimento_alvo, soma_total_n
     pdf.cell(0, 6, "2. CONFIGURACAO DOS ESPACADORES (CALCOS)", 0, 1, 'L')
     pdf.ln(1)
     
-    # Cabeçalho da Tabela
     pdf.set_fill_color(230, 230, 230)
     pdf.set_font("Arial", 'B', 9)
     pdf.cell(45, 6, "Espacador", 1, 0, 'C', True)
@@ -154,21 +157,19 @@ def gerar_pdf(calcos, alocacao, novas_distancias, comprimento_alvo, soma_total_n
     pdf.set_font("Arial", 'B', 9)
     pdf.cell(60, 6, f"{soma_total_nova:.1f} mm", 1, 1, 'C')
     
-    # Status com destaque de cor simulada em texto
     if round(diferenca, 1) > 0:
         status_txt = f"ATENCAO: PASSANDO {abs(diferenca):.1f} mm DO ALVO"
-        pdf.set_fill_color(255, 230, 230) # Fundo avermelhado leve
+        pdf.set_fill_color(255, 230, 230)
     elif round(diferenca, 1) < 0:
         status_txt = f"ATENCAO: FALTANDO {abs(diferenca):.1f} mm PARA O ALVO"
-        pdf.set_fill_color(255, 245, 230) # Fundo amarelado leve
+        pdf.set_fill_color(255, 245, 230)
     else:
         status_txt = "CONFORME: O COMPRIMENTO TOTAL BATE EXATAMENTE COM O ALVO"
-        pdf.set_fill_color(230, 255, 230) # Fundo esverdeado leve
+        pdf.set_fill_color(230, 255, 230)
         
     pdf.set_font("Arial", 'B', 9)
     pdf.cell(190, 7, f"   STATUS DE VALIDACAO: {status_txt}", 1, 1, 'C', True)
     
-    # Retorna os bytes do PDF
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
         pdf.output(tmp_pdf.name)
         with open(tmp_pdf.name, "rb") as f:
@@ -183,7 +184,6 @@ st.set_page_config(page_title="Simulador de Calços - Forjaria", layout="wide")
 st.title("Simulador Dinâmico e Gráfico dos Calços")
 st.write("Insira a espessura (aceita operações matemáticas como 70,5+5), selecione a alocação e defina a folga. O gráfico atualizará em tempo real.")
 
-# 1. Parâmetros Fixos e Dicionários
 bases_fixas = {
     "2º Postiço": 240.0, 
     "3º Postiço": 250.0,
@@ -216,7 +216,6 @@ cores_calcos = {
 }
 cor_base = "rgba(169, 169, 169, 0.6)"
 
-# 2. Parâmetros de Entrada do Operador
 st.subheader("Parâmetros da Montagem")
 
 folga_flange = st.number_input(
@@ -255,7 +254,6 @@ for i in range(4):
 
 st.divider()
 
-# 3. Processamento de Cálculos e Representação Gráfica
 novas_distancias = bases_fixas.copy()
 fig = go.Figure()
 
@@ -271,10 +269,13 @@ for estagio in opcoes_posicao:
             espessura_atual = calcos[nome_calco]
             novas_distancias[estagio] += espessura_atual
             
+            # Ajuste dinâmico de exibição no Plotly web também
+            texto_barra = f"{nome_calco[:2]}<br>{espessura_atual:.1f}mm"
+            
             fig.add_trace(go.Bar(
                 y=['Montagem do Eixo'], x=[espessura_atual], name=nome_calco,
                 orientation='h', marker=dict(color=cores_calcos[nome_calco], line=dict(color='black', width=2)),
-                text=f"{nome_calco[:2]}<br>{espessura_atual:.1f}mm", textposition='inside', insidetextanchor='middle'
+                text=texto_barra, textposition='inside', insidetextanchor='middle'
             ))
             
     fig.add_trace(go.Bar(
@@ -301,7 +302,6 @@ fig.update_layout(
     plot_bgcolor='white', margin=dict(l=20, r=20, t=110, b=50) 
 )
 
-# 4. Apresentação Visual no Dashboard
 col_grafico, col_tabela = st.columns([2, 1])
 
 with col_grafico:
@@ -315,7 +315,6 @@ with col_tabela:
     })
     st.dataframe(df_resultados, hide_index=True, use_container_width=True)
 
-# 5. Métrica de Validação Dimensional
 comprimento_projeto_original = 1737.0 
 comprimento_alvo = comprimento_projeto_original + folga_flange
 soma_total_nova = sum(novas_distancias.values()) + valor_base_inicial
@@ -338,7 +337,6 @@ elif round(diferenca, 1) < 0:
 else:
     st.success(f"✅ **Perfeito!** O comprimento total bate exatamente com o alvo de {comprimento_alvo:.1f} mm.")
 
-# 6. Botão de Exportação para PDF Executivo
 st.divider()
 st.subheader("Exportar Relatório")
 st.write("Gere um documento PDF em formato executivo/industrial contendo o desenho esquemático, tabelas estruturadas e análise de conformidade para aprovação da engenharia e produção.")
