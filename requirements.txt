@@ -1,5 +1,4 @@
 streamlit
 pandas
 plotly
-fpdf
-kaleido
+fpdf2

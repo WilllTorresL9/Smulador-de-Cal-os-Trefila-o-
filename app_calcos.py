@@ -5,7 +5,7 @@ import tempfile
 import os
 from fpdf import FPDF
 
-# --- FUNÇÃO DE CÁLCULO MATEMÁTICO ---
+# --- FUNÇÃO DE CÁLCULO MATEMÁTICO SEGURO ---
 def calcular_expressao(valor_str):
     try:
         expr = str(valor_str).replace(',', '.').strip()
@@ -14,83 +14,73 @@ def calcular_expressao(valor_str):
     except:
         return 0.0
 
-# --- FUNÇÃO DE GERAÇÃO DE PDF ---
-def gerar_pdf(fig, calcos, alocacao, novas_distancias, comprimento_alvo, soma_total_nova, diferenca, nome_dropdown, nome_tabela):
+# --- FUNÇÃO DE GERAÇÃO DE PDF PROFISSIONAL (TEXTO E TABELAS) ---
+def gerar_pdf(calcos, alocacao, novas_distancias, comprimento_alvo, soma_total_nova, diferenca, nome_dropdown, nome_tabela):
     pdf = FPDF()
     pdf.add_page()
     
-    # Cabeçalho
-    pdf.set_font("Arial", style="B", size=16)
-    pdf.cell(200, 10, txt="Relatorio de Setup - Simulador de Calcos", ln=True, align='C')
-    pdf.ln(5)
+    # Cabeçalho do Relatório
+    pdf.set_font("Arial", style="B", size=15)
+    pdf.cell(200, 10, txt="RELATORIO DE SETUP - SIMULADOR DE CALCOS", ln=True, align='C')
+    pdf.ln(4)
     
-    # Salva o gráfico temporariamente como imagem para inserir no PDF
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp_img:
-        fig.write_image(tmp_img.name, width=1000, height=350, scale=2)
-        pdf.image(tmp_img.name, x=5, w=200)
-        tmp_img_path = tmp_img.name
-        
-    pdf.ln(5)
-    
-    # Dados de Configuração
-    pdf.set_font("Arial", style="B", size=12)
-    pdf.cell(200, 8, txt="Configuracao dos Espacadores:", ln=True)
+    # Seção: Configuração dos Espaçadores
+    pdf.set_font("Arial", style="B", size=11)
+    pdf.cell(200, 8, txt="1. Configuracao dos Espacadores:", ln=True)
     pdf.set_font("Arial", size=10)
     for calco, espessura in calcos.items():
         local = nome_dropdown[alocacao[calco]]
-        # Remove acentos para compatibilidade padrão do FPDF
-        local_sem_acento = local.replace('º', 'o').replace('ç', 'c')
-        nome_calco = calco.replace('º', 'o').replace('ç', 'c')
-        pdf.cell(200, 6, txt=f"- {nome_calco}: {espessura:.1f} mm -> Alocado {local_sem_acento}", ln=True)
+        # Remove caracteres especiais para evitar problemas de codificação padrão do FPDF
+        local_limpo = local.replace('º', 'o').replace('ç', 'c').replace('á', 'a')
+        calco_limpo = calco.replace('º', 'o').replace('ç', 'c')
+        pdf.cell(200, 6, txt=f"   - {calco_limpo}: {espessura:.1f} mm  ->  Alocado {local_limpo}", ln=True)
         
-    pdf.ln(5)
+    pdf.ln(4)
     
-    # Distâncias Finais
-    pdf.set_font("Arial", style="B", size=12)
-    pdf.cell(200, 8, txt="Distancia entre Aneis de Reducao:", ln=True)
+    # Seção: Distâncias entre Anéis
+    pdf.set_font("Arial", style="B", size=11)
+    pdf.cell(200, 8, txt="2. Distancia entre Aneis de Reducao:", ln=True)
     pdf.set_font("Arial", size=10)
     for estagio, dist in novas_distancias.items():
-        nome_estagio = nome_tabela[estagio].replace('º', 'o').replace('á', 'a')
-        pdf.cell(200, 6, txt=f"- {nome_estagio}: {dist:.1f} mm", ln=True)
+        estagio_limpo = nome_tabela[estagio].replace('º', 'o').replace('á', 'a').replace('ç', 'c')
+        pdf.cell(200, 6, txt=f"   - {estagio_limpo}: {dist:.1f} mm", ln=True)
         
-    pdf.ln(5)
+    pdf.ln(4)
     
-    # Validação
-    pdf.set_font("Arial", style="B", size=12)
-    pdf.cell(200, 8, txt="Analise do Comprimento Total:", ln=True)
+    # Seção: Validação Dimensional
+    pdf.set_font("Arial", style="B", size=11)
+    pdf.cell(200, 8, txt="3. Analise do Comprimento Total:", ln=True)
     pdf.set_font("Arial", size=10)
-    pdf.cell(200, 6, txt=f"Comprimento Alvo (Original + Folga): {comprimento_alvo:.1f} mm", ln=True)
-    pdf.cell(200, 6, txt=f"Comprimento Total da Montagem: {soma_total_nova:.1f} mm", ln=True)
+    pdf.cell(200, 6, txt=f"   - Comprimento Alvo (Original + Folga): {comprimento_alvo:.1f} mm", ln=True)
+    pdf.cell(200, 6, txt=f"   - Comprimento Total da Montagem: {soma_total_nova:.1f} mm", ln=True)
     
     if round(diferenca, 1) > 0:
-        status = f"ATENCAO: Passando {abs(diferenca):.1f} mm do alvo."
+        status_txt = f"ATENCAO: Passando {abs(diferenca):.1f} mm do comprimento alvo."
     elif round(diferenca, 1) < 0:
-        status = f"ATENCAO: Faltando {abs(diferenca):.1f} mm para o alvo."
+        status_txt = f"ATENCAO: Faltando {abs(diferenca):.1f} mm para atingir o alvo."
     else:
-        status = "PERFEITO: O comprimento total bate exatamente com o alvo."
+        status_txt = "PERFEITO: O comprimento total bate exatamente com o alvo."
         
+    pdf.ln(2)
     pdf.set_font("Arial", style="B", size=10)
-    pdf.cell(200, 6, txt=f"Status: {status}", ln=True)
+    pdf.cell(200, 6, txt=f"   Status: {status_txt}", ln=True)
     
-    # Gera o PDF temporário e lê os bytes
+    # Salva o arquivo PDF temporariamente para leitura dos bytes
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
         pdf.output(tmp_pdf.name)
         with open(tmp_pdf.name, "rb") as f:
             pdf_bytes = f.read()
             
-    # Limpeza dos arquivos temporários
-    os.remove(tmp_img_path)
     os.remove(tmp_pdf.name)
-    
     return pdf_bytes
 
-# Configuração da página
+# --- CONFIGURAÇÃO DA INTERFACE STREAMLIT ---
 st.set_page_config(page_title="Simulador de Calços - Forjaria", layout="wide")
 
 st.title("Simulador Dinâmico e Gráfico dos Calços")
 st.write("Insira a espessura (aceita operações matemáticas como 70,5+5), selecione a alocação e defina a folga. O gráfico atualizará em tempo real.")
 
-# 1. Distâncias fixas das camisas (Postiços)
+# 1. Parâmetros Fixos e Dicionários de Nomenclatura
 bases_fixas = {
     "2º Postiço": 240.0, 
     "3º Postiço": 250.0,
@@ -123,7 +113,7 @@ cores_calcos = {
 }
 cor_base = "rgba(169, 169, 169, 0.6)"
 
-# 2. Interface de Entrada do Operador
+# 2. Parâmetros de Entrada do Operador
 st.subheader("Parâmetros da Montagem")
 
 folga_flange = st.number_input(
@@ -166,6 +156,7 @@ st.divider()
 novas_distancias = bases_fixas.copy()
 fig = go.Figure()
 
+# Desenha a base inicial
 fig.add_trace(go.Bar(
     y=['Montagem do Eixo'], x=[valor_base_inicial], name=nome_base_inicial,
     orientation='h', marker=dict(color=cor_base, line=dict(color='black', width=1)),
@@ -190,6 +181,7 @@ for estagio in opcoes_posicao:
         text=f"{estagio}<br>{bases_fixas[estagio]:.1f}mm", textposition='inside', insidetextanchor='middle'
     ))
 
+# Adição das linhas tracejadas verticais e títulos dos estágios
 titulos_distancias = ["1º para 2º estágio", "2º para 3º estágio", "3º para 4º estágio", "4º para 5º estágio"]
 posicao_x_acumulada = valor_base_inicial
 
@@ -208,7 +200,7 @@ fig.update_layout(
     plot_bgcolor='white', margin=dict(l=20, r=20, t=110, b=50) 
 )
 
-# 4. Apresentação dos Resultados
+# 4. Apresentação Visual no Dashboard
 col_grafico, col_tabela = st.columns([2, 1])
 
 with col_grafico:
@@ -222,7 +214,7 @@ with col_tabela:
     })
     st.dataframe(df_resultados, hide_index=True, use_container_width=True)
 
-# 5. Métrica de Validação
+# 5. Métrica de Validação Dimensional
 comprimento_projeto_original = 1737.0 
 comprimento_alvo = comprimento_projeto_original + folga_flange
 soma_total_nova = sum(novas_distancias.values()) + valor_base_inicial
@@ -245,16 +237,15 @@ elif round(diferenca, 1) < 0:
 else:
     st.success(f"✅ **Perfeito!** O comprimento total bate exatamente com o alvo de {comprimento_alvo:.1f} mm.")
 
-# 6. Geração e Exportação do PDF
+# 6. Botão de Exportação para PDF
 st.divider()
 st.subheader("Exportar Relatório")
-st.write("Gere um documento PDF contendo o setup atual, incluindo os parâmetros, tabela de distâncias e a representação gráfica.")
+st.write("Gere um documento PDF limpo contendo o setup atual, parâmetros, distâncias calculadas e a análise de conformidade.")
 
-# O botão recria o PDF sob demanda para não sobrecarregar o app
 if st.button("📄 Gerar Relatório em PDF"):
-    with st.spinner("Construindo documento..."):
+    with st.spinner("Construindo documento PDF..."):
         pdf_bytes = gerar_pdf(
-            fig, calcos, alocacao, novas_distancias, 
+            calcos, alocacao, novas_distancias, 
             comprimento_alvo, soma_total_nova, diferenca, 
             nome_dropdown, nome_tabela
         )
