@@ -1,5 +1,7 @@
-streamlit
+streamlit>=1.48
 pandas
+numpy
 plotly
 fpdf2
 matplotlib
+openpyxl
